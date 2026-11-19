@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RoomtoStudy – Quiet Study Spaces at StFX</title>
+  <meta name="description" content="Find quiet study rooms at St. Francis Xavier University in Antigonish. Live status from sound and occupancy sensors across the Angus L. Macdonald Library, Wellspring, and residence study lounges." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="container topbar-inner">
+      <span>Live sensor data · St. Francis Xavier University · Antigonish, NS</span>
+      <span class="topbar-right">Anonymous check-in available</span>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="container header-inner">
+      <a href="#" class="logo">
+        <span class="logo-icon">R</span>
+        <span class="logo-text">RoomtoStudy</span>
+      </a>
+      <nav class="nav">
+        <a href="#spaces">Study Spaces</a>
+        <a href="#status">Live Status</a>
+        <a href="#checkin">Check In</a>
+        <a href="#about">About</a>
+      </nav>
+      <a href="#checkin" class="btn btn-primary">Check In</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container hero-inner">
+      <div class="hero-content">
+        <p class="hero-eyebrow">StFX Campus · Antigonish</p>
+        <h1>Find a quiet place to study</h1>
+        <p class="hero-text">
+          Real-time sound and occupancy information from the Angus L. Macdonald Library, Wellspring, and residence study lounges so you can choose a quiet space before you walk across campus.
+        </p>
+        <div class="hero-actions">
+          <a href="#spaces" class="btn btn-primary btn-lg">View Study Spaces</a>
+          <a href="#checkin" class="btn btn-outline btn-lg">Anonymous Check-In</a>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-box">
+          <div class="stat-number" id="stat-quiet">–</div>
+          <div class="stat-label">Quiet spaces</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="stat-empty">–</div>
+          <div class="stat-label">Empty now</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="stat-active">–</div>
+          <div class="stat-label">Students studying</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="spaces" class="section">
+    <div class="container">
+      <div class="section-header">
+        <h2>Study Spaces at StFX</h2>
+        <p>Filter by location type. Click any space to select it for check-in.</p>
+      </div>
+
+      <div class="filters">
+        <button class="filter active" data-filter="all">All Spaces</button>
+        <button class="filter" data-filter="library">Library</button>
+        <button class="filter" data-filter="wellspring">Wellspring</button>
+        <button class="filter" data-filter="residence">Residences</button>
+      </div>
+
+      <div class="legend">
+        <span><span class="swatch quiet"></span> Quiet</span>
+        <span><span class="swatch moderate"></span> Moderate</span>
+        <span><span class="swatch loud"></span> Loud</span>
+        <span><span class="swatch empty"></span> Empty</span>
+        <span><span class="swatch occupied"></span> Occupied</span>
+      </div>
+
+      <div id="rooms-grid" class="rooms-grid"></div>
+
+      <div class="toolbar">
+        <button id="refresh-btn" class="btn btn-outline">↻ Refresh Sensors</button>
+        <span class="updated">Last updated: <span id="last-updated">just now</span></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="status" class="section section-gray">
+    <div class="container">
+      <div class="section-header">
+        <h2>Live Room Status</h2>
+        <p>Current sound level and occupancy readings from sensors.</p>
+      </div>
+      <div id="status-grid" class="status-grid"></div>
+    </div>
+  </section>
+
+  <section id="checkin" class="section">
+    <div class="container narrow">
+      <div class="section-header">
+        <h2>Anonymous Check-In</h2>
+        <p>Only the study space and times are stored. No personal information is collected.</p>
+      </div>
+
+      <div class="card">
+        <form id="checkin-form">
+          <div class="form-group">
+            <label for="room-select">Study Space</label>
+            <select id="room-select" required>
+              <option value="">Select a space…</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="checkin-time">Check-In Time</label>
+              <input type="datetime-local" id="checkin-time" required />
+            </div>
+            <div class="form-group">
+              <label for="checkout-time">Expected Check-Out</label>
+              <input type="datetime-local" id="checkout-time" required />
+            </div>
+          </div>
+          <div class="note">
+            Completely anonymous. We only store the room and the times you provide. This helps keep the map accurate for other students.
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg btn-block">Check In Anonymously</button>
+        </form>
+
+        <div id="success" class="success hidden">
+          <div class="success-icon">✓</div>
+          <h3>You’re checked in</h3>
+          <p id="success-msg"></p>
+          <button class="btn btn-outline" id="reset-btn">Check in to another space</button>
+        </div>
+      </div>
+
+      <div class="activity-section">
+        <h3>Recent Activity</h3>
+        <div id="activity-list" class="activity-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="about" class="section section-gray">
+    <div class="container">
+      <div class="section-header">
+        <h2>About RoomtoStudy</h2>
+        <p>Built to help StFX students find quiet places to focus.</p>
+      </div>
+      <div class="features">
+        <div class="feature">
+          <div class="feature-title">Sound Sensors</div>
+          <p>Each space is classified as Quiet, Moderate, or Loud based on ambient noise levels.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-title">Occupancy Sensors</div>
+          <p>Force sensors help show whether a space is empty or already in use.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-title">Anonymous by Design</div>
+          <p>Check-ins only record the space and times. No names or personal data.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-title">StFX Locations</div>
+          <p>Angus L. Macdonald Library, Wellspring, and residence study lounges.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">RoomtoStudy</div>
+      <p>Find quiet. Stay focused. · Antigonish, NS</p>
+      <p class="footer-copy">© 2026 RoomtoStudy · Data is anonymous · Not affiliated with St. Francis Xavier University</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
