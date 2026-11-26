@@ -16,7 +16,62 @@ const ROOMS = [
   { id: "res-mac", name: "MacIsaac Hall Lounge", building: "MacIsaac Hall", category: "residence", capacity: 12, note: "Residence study" },
   { id: "res-ollie", name: "Oland Hall Study", building: "Oland Hall", category: "residence", capacity: 10, note: "Residence study" }
 ];
+// ========== FIREBASE CONFIG ==========
+const firebaseConfig = {
+  apiKey: "AIzaSyCLiY1eDLyQY1FZdUNYJf3HC3-hPTfhNp4",
+  authDomain: "teo-project-679ad.firebaseapp.com",
+  databaseURL: "https://teo-project-679ad-default-rtdb.firebaseio.com",
+  projectId: "teo-project-679ad",
+  storageBucket: "teo-project-679ad.firebasestorage.app",
+  messagingSenderId: "583737240437",
+  appId: "1:583737240437:web:1aa71f91631cdb43f5013c"
+};
 
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ========== LIVE SENSOR CONNECTION ==========
+// Change this if your Study Room 5 has a different ID in the code
+const LIVE_ROOM_ID = "lib-sr5";   // ← most likely this one
+
+function connectLiveSensors() {
+  // Listen to Sound sensor
+  db.ref("/sensors/sound").on("value", (snapshot) => {
+    const data = snapshot.val();
+    if (!data || !roomState[LIVE_ROOM_ID]) return;
+
+    const level = data.peak_to_peak ?? 0;
+    let status = "quiet";
+    if (level > 55) status = "loud";
+    else if (level > 35) status = "moderate";
+
+    roomState[LIVE_ROOM_ID].soundLevel = level;
+    roomState[LIVE_ROOM_ID].soundStatus = status;
+
+    renderRooms();
+    renderStatus();
+    updateStats();
+  });
+
+  // Listen to Force sensor
+  db.ref("/sensors/force").on("value", (snapshot) => {
+    const data = snapshot.val();
+    if (!data || !roomState[LIVE_ROOM_ID]) return;
+
+    const occupied = (data.raw ?? 0) >= 21;   // same threshold as your dashboard
+
+    roomState[LIVE_ROOM_ID].occupied = occupied;
+    roomState[LIVE_ROOM_ID].seatsUsed = occupied ? 1 : 0;
+
+    renderRooms();
+    renderStatus();
+    updateStats();
+  });
+}
+
+// Start listening when the page loads
+connectLiveSensors();
 var roomState = {};
 var currentFilter = "all";
 var STORAGE_KEY = "roomtostudy_stfx_v2";
