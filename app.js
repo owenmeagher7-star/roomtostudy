@@ -1,14 +1,5 @@
-// RoomtoStudy – StFX Edition
-// Data comes from Firebase Realtime Database:
-//   /rooms/{roomId}     -> optional room list (name, building, category, capacity, note)
-//   /readings/{roomId}  -> live data for any room (soundLevel, occupied, seatsUsed)
-//   /sensors/sound      -> existing hardware sensor for Study Room 5 (peak_to_peak)
-//   /sensors/force      -> existing hardware sensor for Study Room 5 (raw)
-//   /checkins           -> anonymous check-ins written by this page
+// RoomtoStudy – StFX Edition (Fixed)
 
-// ========== 1. YOUR FIREBASE PROJECT ==========
-// Replace these values with the config from YOUR Firebase project:
-// Firebase console -> Project settings (gear icon) -> Your apps -> Web app -> SDK setup and configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCLiY1eDLyQY1FZdUNYJf3HC3-hPTfhNp4",
   authDomain: "teo-project-679ad.firebaseapp.com",
@@ -19,12 +10,9 @@ const firebaseConfig = {
   appId: "1:583737240437:web:1aa71f91631cdb43f5013c"
 };
 
-// Rooms with no data in Firebase get made-up demo readings while this is true.
-// Set it to false once your real data is in, so nothing fake is shown.
 const SHOW_DEMO_DATA = true;
+const LIVE_ROOM_ID = "lib-sr5";
 
-// ========== 2. DEFAULT ROOM LIST ==========
-// Used until you add a /rooms node in Firebase. Anything in /rooms replaces this list.
 var ROOMS = [
   { id: "lib-pod", name: "Study Pod", building: "Angus L. Macdonald Library", category: "library", capacity: 1, note: "Soundproof · 1st floor" },
   { id: "lib-sr1", name: "Study Room 1", building: "Angus L. Macdonald Library", category: "library", capacity: 6, note: "Bookable" },
@@ -42,18 +30,14 @@ var ROOMS = [
   { id: "res-ollie", name: "Oland Hall Study", building: "Oland Hall", category: "residence", capacity: 10, note: "Residence study" }
 ];
 
-// Study Room 5 also listens to the original hardware sensors.
-const LIVE_ROOM_ID = "lib-sr5";
-
-// ========== STATE ==========
-var roomState = {};      // what is shown for each room
-var liveReadings = {};   // latest data from /readings
-var hardware = {};       // latest data from /sensors (Study Room 5)
-var checkins = [];       // latest check-ins from /checkins
+var roomState = {};
+var liveReadings = {};
+var hardware = {};
+var checkins = [];
 var currentFilter = "all";
 var db = null;
+var demoCache = {};
 
-// ========== HELPERS ==========
 function label(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -66,12 +50,16 @@ function soundStatusFor(level) {
 
 function escapeHtml(s) {
   return String(s == null ? "" : s)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function findRoom(id) {
-  for (var i = 0; i < ROOMS.length; i++) if (ROOMS[i].id === id) return ROOMS[i];
+  for (var i = 0; i < ROOMS.length; i++) {
+    if (ROOMS[i].id === id) return ROOMS[i];
+  }
   return null;
 }
 
@@ -86,9 +74,6 @@ function toLocalInputValue(d) {
   return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
     "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
 }
-
-// ========== BUILD THE STATE SHOWN FOR EACH ROOM ==========
-var demoCache = {};
 
 function demoReading(room) {
   var soundLevel = Math.min(85, Math.round(20 + Math.random() * 45));
@@ -124,16 +109,13 @@ function rebuildState() {
       source = "demo";
     }
 
-    roomState[room.id] = reading ? {
-      soundLevel: reading.soundLevel,
-      soundStatus: soundStatusFor(reading.soundLevel),
-      occupied: reading.occupied,
-      seatsUsed: reading.seatsUsed,
+    roomState[room.id] = {
+      soundLevel: reading ? reading.soundLevel : 0,
+      soundStatus: reading ? soundStatusFor(reading.soundLevel) : "quiet",
+      occupied: reading ? reading.occupied : false,
+      seatsUsed: reading ? reading.seatsUsed : 0,
       capacity: room.capacity,
       source: source
-    } : {
-      soundLevel: null, soundStatus: "quiet", occupied: false, seatsUsed: 0,
-      capacity: room.capacity, source: "none"
     };
   }
 }
@@ -147,7 +129,6 @@ function refreshAll() {
   if (el) el.textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
 }
 
-// ========== RENDERING ==========
 function renderRooms() {
   var grid = document.getElementById("rooms-grid");
   if (!grid) return;
@@ -157,10 +138,9 @@ function renderRooms() {
     var room = ROOMS[i];
     if (currentFilter !== "all" && room.category !== currentFilter) continue;
 
-    var state = roomState[room.id];
+    var state = roomState[room.id] || { source: "none", soundStatus: "quiet", occupied: false, seatsUsed: 0, capacity: room.capacity };
     var noData = state.source === "none";
-    var seatsText = noData ? "No sensor data yet"
-      : state.occupied ? state.seatsUsed + "/" + state.capacity + " seats" : "Empty";
+    var seatsText = noData ? "No sensor data yet" : (state.occupied ? state.seatsUsed + "/" + state.capacity + " seats" : "Empty");
 
     html += '<div class="room-card ' + (noData ? "" : state.soundStatus) + '" data-id="' + escapeHtml(room.id) + '">';
     html += '<div class="building">' + escapeHtml(room.building) + '</div>';
@@ -200,7 +180,7 @@ function renderStatus() {
   var html = "";
   for (var i = 0; i < ROOMS.length; i++) {
     var room = ROOMS[i];
-    var state = roomState[room.id];
+    var state = roomState[room.id] || { source: "none", soundStatus: "quiet", occupied: false, seatsUsed: 0, capacity: room.capacity };
     var noData = state.source === "none";
     var seatsText = state.occupied ? state.seatsUsed + " of " + state.capacity : "Empty";
     var sourceText = state.source === "live" ? "Live sensor" : state.source === "demo" ? "Demo data" : "No data";
@@ -212,12 +192,10 @@ function renderStatus() {
     html += '</div>';
     html += '<div class="status-metrics">';
     html += '<div class="metric"><span>Sound level</span><strong>' + (noData ? "–" : "~" + state.soundLevel + " dB") + '</strong></div>';
-    html += '<div class="metric"><span>Occupancy</span><strong>' + (noData ? "–" :
-      '<span class="badge ' + (state.occupied ? "occupied" : "empty") + '">' + seatsText + '</span>') + '</strong></div>';
+    html += '<div class="metric"><span>Occupancy</span><strong>' + (noData ? "–" : '<span class="badge ' + (state.occupied ? "occupied" : "empty") + '">' + seatsText + '</span>') + '</strong></div>';
     html += '<div class="metric"><span>Capacity</span><strong>' + room.capacity + '</strong></div>';
     html += '<div class="metric"><span>Source</span><strong>' + sourceText + '</strong></div>';
-    html += '</div>';
-    html += '</div>';
+    html += '</div></div>';
   }
   grid.innerHTML = html;
 }
@@ -231,7 +209,10 @@ function updateStats() {
     if (!s.occupied) empty++;
     active += s.seatsUsed || 0;
   }
-  var set = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+  var set = function (id, v) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = v;
+  };
   set("stat-quiet", quiet);
   set("stat-empty", empty);
   set("stat-active", active);
@@ -240,13 +221,11 @@ function updateStats() {
 function populateRoomSelect() {
   var select = document.getElementById("room-select");
   if (!select) return;
-  var current = select.value;
   var html = '<option value="">Select a space…</option>';
   for (var i = 0; i < ROOMS.length; i++) {
     html += '<option value="' + escapeHtml(ROOMS[i].id) + '">' + escapeHtml(ROOMS[i].name) + ' – ' + escapeHtml(ROOMS[i].building) + '</option>';
   }
   select.innerHTML = html;
-  if (current) select.value = current;
 }
 
 function renderActivity() {
@@ -267,16 +246,14 @@ function renderActivity() {
   list.innerHTML = html;
 }
 
-// ========== FIREBASE LISTENERS ==========
 function connectFirebase() {
   if (typeof firebase === "undefined") {
-    console.warn("Firebase SDK did not load; showing default data only.");
+    console.warn("Firebase SDK did not load");
     return;
   }
   firebase.initializeApp(firebaseConfig);
   db = firebase.database();
 
-  // Optional room list: if /rooms has entries, they replace the default list.
   db.ref("/rooms").on("value", function (snap) {
     var data = snap.val();
     if (data) {
@@ -289,49 +266,40 @@ function connectFirebase() {
           building: r.building || "",
           category: r.category || "library",
           capacity: Number(r.capacity) || 1,
-          note: r.note || "",
-          order: Number(r.order) || 0
+          note: r.note || ""
         });
       });
-      list.sort(function (a, b) { return a.order - b.order; });
       ROOMS = list;
       populateRoomSelect();
     }
     refreshAll();
-    renderActivity();
-  }, logError("/rooms"));
+  });
 
-  // Live readings for any room, keyed by room id.
   db.ref("/readings").on("value", function (snap) {
     liveReadings = snap.val() || {};
     refreshAll();
-  }, logError("/readings"));
+  });
 
-  // Original hardware sensors for Study Room 5.
   db.ref("/sensors/sound").on("value", function (snap) {
     hardware.sound = snap.val();
     refreshAll();
-  }, logError("/sensors/sound"));
+  });
 
   db.ref("/sensors/force").on("value", function (snap) {
     hardware.force = snap.val();
     refreshAll();
-  }, logError("/sensors/force"));
+  });
 
-  // Shared check-ins (most recent 40).
   db.ref("/checkins").orderByChild("createdAt").limitToLast(40).on("value", function (snap) {
     var list = [];
-    snap.forEach(function (child) { list.push(child.val()); });
+    snap.forEach(function (child) {
+      list.push(child.val());
+    });
     checkins = list;
     renderActivity();
-  }, logError("/checkins"));
+  });
 }
 
-function logError(path) {
-  return function (err) { console.error("Firebase read failed for " + path + ":", err && err.message); };
-}
-
-// ========== CHECK-IN FORM ==========
 function setupCheckin() {
   var form = document.getElementById("checkin-form");
   var success = document.getElementById("success");
@@ -370,13 +338,13 @@ function setupCheckin() {
         var room = findRoom(roomId);
         successMsg.textContent = (room ? room.name : roomId) + " until " + formatTime(entry.checkOut) + ".";
         form.style.display = "none";
-        success.classList.remove("hidden");
+        if (success) success.classList.remove("hidden");
       };
 
       if (db) {
         db.ref("/checkins").push(entry).then(done).catch(function (err) {
-          console.error("Check-in failed:", err);
-          alert("Sorry, the check-in could not be saved. Please try again.");
+          console.error(err);
+          alert("Could not save check-in.");
         });
       } else {
         checkins.push(entry);
@@ -391,12 +359,11 @@ function setupCheckin() {
       form.reset();
       setDefaultTimes();
       form.style.display = "";
-      success.classList.add("hidden");
+      if (success) success.classList.add("hidden");
     });
   }
 }
 
-// ========== FILTERS & REFRESH ==========
 function setupControls() {
   var filters = document.querySelectorAll(".filter");
   for (var i = 0; i < filters.length; i++) {
@@ -411,13 +378,12 @@ function setupControls() {
   var refresh = document.getElementById("refresh-btn");
   if (refresh) {
     refresh.addEventListener("click", function () {
-      demoCache = {};   // new demo numbers; live data updates on its own
+      demoCache = {};
       refreshAll();
     });
   }
 }
 
-// ========== START ==========
 document.addEventListener("DOMContentLoaded", function () {
   populateRoomSelect();
   setupControls();
